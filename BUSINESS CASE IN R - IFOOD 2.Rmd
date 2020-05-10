@@ -1,0 +1,234 @@
+---
+title: "Business Case - iFood"
+author: "Maycon Macedo"
+---
+
+```{r, include=FALSE, mychunk}
+# Instalar bibliotecas se não tiver instalado no ambiente
+
+#install.packages('skimr')
+#install.packages('dplyr')
+#install.packages('corrplot')
+#install.packages("RColorBrewer")
+
+```
+
+```{r, include=FALSE, mychunk}
+
+# Carregando bibliotecas
+
+library(skimr)
+library(dplyr)
+library(corrplot)
+library(ggplot2)
+library(RColorBrewer)
+
+```
+
+```{r echo=FALSE}
+
+# Importando o arquivo csv
+dados <- read.csv('ml_project1_data.csv')
+
+# ANÁLISE EXPLORATÓRIA
+
+# análise geral
+
+dados %>% skim()
+
+```
+
+```{r echo=FALSE}
+
+# Removendo colunas que não estão nos metadados do PDF do case
+
+dados <- select(dados, -c("ID","Z_Revenue" ,"Z_CostContact","Year_Birth"))
+
+# Missing Values
+
+# Há 24 dados faltantes. Todos na coluna Income. Diante do tamanho do dateset, 
+# eu apenas irei excluir os registros que tiverem pelo menos um dado faltante,
+# pois não irá impactar nos resultados finais da previsão.
+
+dados <- dados[!is.na(dados$Income),]
+
+#Transformando colunas booleanas
+dados$AcceptedCmp1 <- as.logical(dados$AcceptedCmp1)
+dados$AcceptedCmp2 <- as.logical(dados$AcceptedCmp2)
+dados$AcceptedCmp3 <- as.logical(dados$AcceptedCmp3)
+dados$AcceptedCmp4 <- as.logical(dados$AcceptedCmp4)
+dados$AcceptedCmp5 <- as.logical(dados$AcceptedCmp5)
+dados$Response <- as.logical(dados$Response)
+dados$Complain <- as.logical(dados$Complain)
+
+```
+
+```{r echo=FALSE}
+
+# Correlação entre as variáveis numéricas
+
+numericVars <- which(sapply(dados, is.numeric))
+numericVars <- names(numericVars)
+
+correlacao <- cor(dados[,numericVars], use = 'pairwise.complete.obs')
+
+corrplot(correlacao, tl.col="black", tl.pos = "lt", )
+
+```
+
+```{r echo=FALSE}
+
+# As variáveis MntMeatProducts e NumCatalogPurchases têm alta correlação positiva de 73%. Isto quer dizer que num contexto lógico, quanto maior as compras por catálogo, maior será o valor gasto com carne.
+
+best_cor <- sort(correlacao[,'MntMeatProducts'], decreasing = TRUE)
+best_cor[2]*100
+
+```
+
+```{r echo=FALSE}
+
+# Plotando as variáveis percebe-se que existem alguns valores altos que irei considerar como outliers.
+
+reg <- lm(NumCatalogPurchases~MntMeatProducts, data = dados)
+
+plot(NumCatalogPurchases~MntMeatProducts, data = dados, main = 'Plotagem das variáveis e linha ajustada da regressão')
+abline(reg, col = 'red', lwd = 4)
+
+```
+
+```{r echo=FALSE}
+
+# Irei retirar os outliers do dataset e verificar novamente a correlação e os resultados analíticos através de uma regressão linear entre essas duas variáveis.
+
+subset <- filter(dados, dados$MntMeatProducts < 1500 & dados$NumCatalogPurchases < 15)
+
+reg <- lm(NumCatalogPurchases~MntMeatProducts, data = subset)
+
+plot(NumCatalogPurchases~MntMeatProducts, data = subset, main = 'Plotagem das variáveis e linha ajustada da regressão')
+abline(reg, col = 'red', lwd = 4)
+
+```
+
+```{r echo=FALSE}
+
+# Sumário da regressão linear sem os outliers
+summary(reg)
+
+```
+
+```{r echo=FALSE}
+
+# Nova correlação sem outliers
+
+correlacao <- cor(subset[,numericVars], use = 'pairwise.complete.obs')
+
+best_cor <- sort(correlacao[,'MntMeatProducts'], decreasing = TRUE)
+best_cor[2]*100
+
+
+```
+
+```{r echo=FALSE}
+
+# Irei considerar estas duas variáveis, por enquanto, em nossa análise, pois ao retirar os outliers houve uma queda na correlação entre as variáveis e o R^2 da regressão linear ficou abaixo de 50%. Isto quer dizer que o cruzamento dos dados dessas duas variáveis estão dispersos diante da linha ajustada pelo modelo, tornando estas duas variáveis insignificantes comparando-as uma com a outra.   
+
+# Análise geral
+
+subset %>% skim()
+
+```
+
+```{r echo=FALSE}
+
+# Analisando distriuição dos dados no gráfico, percebe-se cauda alongada à direita. Terá que ser feito feature engineering utilizando log dos valores dos dados para reduzir esta cauda.
+
+s1 <- ggplot(data= subset, aes(x=MntWines)) +
+        geom_density() + labs(x='MntWines')
+s2 <- ggplot(data=subset, aes(x=MntFruits)) +
+        geom_density() + labs(x='MntFruits')
+s3 <- ggplot(data= subset, aes(x=MntMeatProducts)) +
+        geom_density() + labs(x='MntMeatProducts')
+s4 <- ggplot(data= subset, aes(x=MntFishProducts)) +
+        geom_density() + labs(x='MntFishProducts')
+s5 <- ggplot(data= subset, aes(x=MntSweetProducts)) +
+        geom_density() + labs(x='MntSweetProducts')
+s6 <- ggplot(data= subset, aes(x=MntGoldProds)) +
+        geom_density() + labs(x='MntGoldProds')
+s7 <- ggplot(data= subset, aes(x=Income)) +
+        geom_density() + labs(x='Income')
+
+s1
+s2
+s3
+s4
+s5
+s6
+s7
+
+```
+
+```{r echo=FALSE}
+
+# Visualizando boxplot de variáveis numéricos pela categoria Education
+
+s1 <- ggplot(data= subset, aes(y=MntWines, x= Education)) +
+        geom_boxplot(aes(fill = Education)) + labs(y='MntWines', x= 'Education') +
+        scale_fill_brewer(palette = "Dark2")
+
+s2 <- ggplot(data=subset, aes(y=MntFruits, x= Education)) +
+        geom_boxplot(aes(fill = Education)) + labs(y='MntFruits', x= 'Education') + 
+        scale_fill_brewer(palette = "Dark2")
+
+s3 <- ggplot(data= subset, aes(y=MntMeatProducts, x= Education)) +
+        geom_boxplot(aes(fill = Education)) + labs(y='MntMeatProducts', x= 'Education') + 
+        scale_fill_brewer(palette = "Dark2")
+
+s4 <- ggplot(data= subset, aes(y=MntFishProducts, x= Education)) +
+        geom_boxplot(aes(fill = Education)) + labs(y='MntFishProducts', x= 'Education') + 
+        scale_fill_brewer(palette = "Dark2")
+
+s5 <- ggplot(data= subset, aes(y=MntSweetProducts, x= Education)) +
+        geom_boxplot(aes(fill = Education)) + labs(y='MntSweetProducts', x= 'Education') + 
+        scale_fill_brewer(palette = "Dark2")
+
+s6 <- ggplot(data= subset, aes(y=MntGoldProds, x= Education)) +
+        geom_boxplot(aes(fill = Education)) + labs(y='MntGoldProds', x= 'Education') + 
+        scale_fill_brewer(palette = "Dark2")
+
+s7 <- ggplot(data= subset, aes(y=Income, x= Education)) +
+        geom_boxplot(aes(fill = Education)) + labs(y='Income', x= 'Education') + 
+        scale_fill_brewer(palette = "Dark2")
+
+
+s1
+s2
+s3
+s4
+s5
+s6
+s7
+
+```
+
+
+```{r echo=FALSE}
+
+# Analisando a amplitude interquartil de Income
+
+ggplot(data= subset, aes(y=Income)) + 
+      geom_boxplot(fill = '#C70039', color = '#FF5733') + labs(y='Income') +
+      scale_y_continuous(breaks= seq(0, 700000, by=25000))
+
+```
+
+```{r echo=FALSE}
+
+# Irei retirar o Income de maior valor, pois de acordo com o gráfico acima, é um outlier bem enviesado no nosso dataset
+
+subset1 <- filter(subset, subset$Income < 250000 )
+
+ggplot(data= subset1, aes(y=Income)) + 
+      geom_boxplot(fill = '#C70039', color = '#FF5733') + labs(y='Income') +
+      scale_y_continuous(breaks= seq(0, 700000, by=25000))
+
+```
