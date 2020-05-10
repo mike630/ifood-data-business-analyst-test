@@ -10,6 +10,9 @@ author: "Maycon Macedo"
 #install.packages('dplyr')
 #install.packages('corrplot')
 #install.packages("RColorBrewer")
+#install.packages('ggpubr')
+#install.packages('psych')
+#install.packages('caret')
 
 ```
 
@@ -22,6 +25,9 @@ library(dplyr)
 library(corrplot)
 library(ggplot2)
 library(RColorBrewer)
+library(ggpubr)
+library(psych)
+library(caret)
 
 ```
 
@@ -98,7 +104,7 @@ abline(reg, col = 'red', lwd = 4)
 
 ```{r echo=FALSE}
 
-# Irei retirar os outliers do dataset e verificar novamente a correlação e os resultados analíticos através de uma regressão linear entre essas duas variáveis.
+# Irei retirar os outliers do dataset e verificar novamente a correlação e os resultados através de uma regressão linear entre essas duas variáveis.
 
 subset <- filter(dados, dados$MntMeatProducts < 1500 & dados$NumCatalogPurchases < 15)
 
@@ -130,7 +136,7 @@ best_cor[2]*100
 
 ```{r echo=FALSE}
 
-# Irei considerar estas duas variáveis, por enquanto, em nossa análise, pois ao retirar os outliers houve uma queda na correlação entre as variáveis e o R^2 da regressão linear ficou abaixo de 50%. Isto quer dizer que o cruzamento dos dados dessas duas variáveis estão dispersos diante da linha ajustada pelo modelo, tornando estas duas variáveis insignificantes comparando-as uma com a outra.   
+# Irei considerar estas duas variáveis, por enquanto, em nossa análise, pois ao retirar os outliers houve uma queda na correlação entre as variáveis e o R^2 da regressão linear ficou abaixo de 50%. Isto quer dizer que o cruzamento dos dados dessas duas variáveis estão dispersos diante da linha ajustada pelo modelo de regressão, tornando estas duas variáveis insignificantes comparando-as uma com a outra.   
 
 # Análise geral
 
@@ -157,13 +163,24 @@ s6 <- ggplot(data= subset, aes(x=MntGoldProds)) +
 s7 <- ggplot(data= subset, aes(x=Income)) +
         geom_density() + labs(x='Income')
 
-s1
-s2
-s3
-s4
-s5
-s6
-s7
+s8 <- ggplot(data= subset, aes(x=NumDealsPurchases)) +
+        geom_density() + labs(x='NumDealsPurchases')
+
+s9 <- ggplot(data= subset, aes(x=NumWebPurchases)) +
+        geom_density() + labs(x='NumWebPurchases')
+
+s10 <- ggplot(data= subset, aes(x=NumCatalogPurchases)) +
+        geom_density() + labs(x='NumCatalogPurchases')
+
+s11 <- ggplot(data= subset, aes(x=NumStorePurchases)) +
+        geom_density() + labs(x='NumStorePurchases')
+
+s12 <- ggplot(data= subset, aes(x=NumWebVisitsMonth)) +
+        geom_density() + labs(x='NumWebVisitsMonth')
+
+ggarrange(s1,s2,s3,s4,s5,s6, ncol = 3, nrow = 2)
+
+ggarrange(s7,s8,s9,s10,s11,s12, ncol = 3, nrow = 2)
 
 ```
 
@@ -199,25 +216,59 @@ s7 <- ggplot(data= subset, aes(y=Income, x= Education)) +
         geom_boxplot(aes(fill = Education)) + labs(y='Income', x= 'Education') + 
         scale_fill_brewer(palette = "Dark2")
 
+s8 <- ggplot(data= subset, aes(y=NumDealsPurchases, x= Education)) +
+        geom_boxplot(aes(fill = Education)) + labs(y='NumDealsPurchases', x= 'Education') + 
+        scale_fill_brewer(palette = "Dark2")
 
-s1
-s2
-s3
-s4
-s5
-s6
-s7
+s9 <- ggplot(data= subset, aes(y=NumWebPurchases, x= Education)) +
+        geom_boxplot(aes(fill = Education)) + labs(y='NumWebPurchases', x= 'Education') + 
+        scale_fill_brewer(palette = "Dark2")
+
+s10 <- ggplot(data= subset, aes(y=NumCatalogPurchases, x= Education)) +
+        geom_boxplot(aes(fill = Education)) + labs(y='NumCatalogPurchases', x= 'Education') + 
+        scale_fill_brewer(palette = "Dark2")
+
+s11 <- ggplot(data= subset, aes(y=NumStorePurchases, x= Education)) +
+        geom_boxplot(aes(fill = Education)) + labs(y='NumStorePurchases', x= 'Education') + 
+        scale_fill_brewer(palette = "Dark2")
+
+s12 <- ggplot(data= subset, aes(y=NumWebVisitsMonth, x= Education)) +
+        geom_boxplot(aes(fill = Education)) + labs(y='NumWebVisitsMonth', x= 'Education') + 
+        scale_fill_brewer(palette = "Dark2")
+
+ggarrange(s1,s2, ncol = 1, nrow = 2)
+ggarrange(s3,s4, ncol = 1, nrow = 2)
+ggarrange(s5,s6, ncol = 1, nrow = 2)
+ggarrange(s7,s8, ncol = 1, nrow = 2)
+ggarrange(s9,s10, ncol = 1, nrow = 2)
+ggarrange(s11,s12, ncol = 1, nrow = 2)
 
 ```
 
-
 ```{r echo=FALSE}
 
-# Analisando a amplitude interquartil de Income
+# Analisando a gráfico boxplot de Income
 
 ggplot(data= subset, aes(y=Income)) + 
       geom_boxplot(fill = '#C70039', color = '#FF5733') + labs(y='Income') +
       scale_y_continuous(breaks= seq(0, 700000, by=25000))
+
+```
+
+```{r echo=FALSE}
+
+# Analisando mais a fundo a variável Income
+
+ggqqplot(subset$Income)
+
+shapiro.test(subset$Income)
+
+print('Skew')
+skew(subset$Income)
+
+# Conforme analisado abaixo, o teste de Shapiro-Wilk indica se a variável está normalmente distribuída ou não. A hipótese nula do teste de Shapiro-Wilk é que a população possui distribuição normal. Portanto, um valor de p < 0.05 indica que se rejeitou a hipótese nula, ou seja, os dados não possuem distribuição normal que aliás é o caso da variável Income.
+
+# O Skewness mede a simetria dos dados. Se os dados estiverem normalmente distribuídos, o resultado tende a estar perto de zero.Se estiver assimétrico à esquerda, o resultado skew será negativo. Se estiver assimétrico à direita, o resultado será positivo. O resultado da variável Income está em torno de 6.93 conforme resultado abaixo.
 
 ```
 
@@ -230,5 +281,108 @@ subset1 <- filter(subset, subset$Income < 250000 )
 ggplot(data= subset1, aes(y=Income)) + 
       geom_boxplot(fill = '#C70039', color = '#FF5733') + labs(y='Income') +
       scale_y_continuous(breaks= seq(0, 700000, by=25000))
+
+```
+
+```{r echo=FALSE}
+
+# Verificando a variável Income depois de retirar o outlier.
+
+ggqqplot(subset1$Income)
+
+shapiro.test(subset1$Income)
+
+print('Skew')
+skew(subset1$Income)
+
+```
+
+```{r echo=FALSE}
+
+# Analisando as variáveis qualitativas
+
+# Marital Status
+summary(as.factor(subset1$Marital_Status))
+
+# Irei excluir registros que contenham Absurd ou YOLO, pois eu não faço ideia o que seja e por conterem menos de 5 registros no total.
+subset2 <- subset1[!(subset1$Marital_Status %in% c('Absurd','YOLO')),]
+
+# Irei atribuir Alone como Single
+subset2$Marital_Status <- ifelse(subset2$Marital_Status == 'Alone', "Single", subset2$Marital_Status)
+
+summary(as.factor(subset2$Marital_Status))
+
+```
+
+```{r echo=FALSE}
+
+# FEATURE ENGINEERING
+
+# Normalizando variáveis numéricas com skew maior que 0.6 ou menor que -0.6 com log e pré-processamento.
+
+skewed <- as.data.frame(ifelse(skew(subset2[,numericVars]) > 0.4 | skew(subset2[,numericVars]) < -0.4, log(subset2[,numericVars]+1),subset2[,numericVars]))
+
+
+colnames(skewed) <- numericVars
+
+# Pré-procesando dataset
+
+preNumVars <- preProcess(skewed, method = c('center','scale'),na.remove = T)
+preNumVars
+trainClean_NumVars <- predict(preNumVars,skewed)
+
+
+```
+
+```{r echo=FALSE}
+
+# One-hot encoding na única variável não ordinal - Marital_Status
+
+dummy <- dummyVars(" ~ Marital_Status ", data = subset2, fullRank = T)
+
+dt_dummied <- data.frame(predict(dummy, newdata = subset2))
+
+```
+
+```{r echo=FALSE}
+
+# Ordinal encoding na variável Education
+
+trainClean_NumVars$Education.ord <- ifelse(subset2$Education == 'Basic', 1,
+                                ifelse(subset2$Education == '2n Cycle',2,
+                                       ifelse(subset2$Education == 'Graduation', 3,
+                                              ifelse(subset2$Education == 'Master', 4, 5))))
+
+```
+
+```{r echo=FALSE}
+
+# Irei excluir a variável Dt_Customer pois julguei não ser importante para este caso
+subset2$Dt_Customer <- NULL
+
+
+# Combinando o dataset final para fazermos nossa previsão.
+dataset4 <- cbind(dt_dummied, trainClean_NumVars, subset2[,18:24])
+
+# Revertendo as colunas booleanas
+dataset4$AcceptedCmp1 <- as.numeric(dataset4$AcceptedCmp1)
+dataset4$AcceptedCmp2 <- as.numeric(dataset4$AcceptedCmp2)
+dataset4$AcceptedCmp3 <- as.numeric(dataset4$AcceptedCmp3)
+dataset4$AcceptedCmp4 <- as.numeric(dataset4$AcceptedCmp4)
+dataset4$AcceptedCmp5 <- as.numeric(dataset4$AcceptedCmp5)
+dataset4$Response <- as.numeric(dataset4$Response)
+dataset4$Complain <- as.numeric(dataset4$Complain)
+
+```
+
+```{r echo=FALSE}
+
+
+
+```
+
+```{r echo=FALSE}
+
+
 
 ```
