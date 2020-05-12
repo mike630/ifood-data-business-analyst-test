@@ -13,6 +13,8 @@ author: "Maycon Macedo"
 #install.packages('ggpubr')
 #install.packages('psych')
 #install.packages('caret')
+#install.packages('rpart')
+#install.packages('e1071')
 
 ```
 
@@ -28,6 +30,9 @@ library(RColorBrewer)
 library(ggpubr)
 library(psych)
 library(caret)
+library(rpart)
+library(e1071)
+library(gbm)
 
 ```
 
@@ -48,7 +53,7 @@ dados %>% skim()
 
 # Removendo colunas que não estão nos metadados do PDF do case
 
-dados <- select(dados, -c("ID","Z_Revenue" ,"Z_CostContact","Year_Birth"))
+dados <- dplyr::select(dados, -c("ID","Z_Revenue" ,"Z_CostContact","Year_Birth"))
 
 # Missing Values
 
@@ -162,19 +167,14 @@ s6 <- ggplot(data= subset, aes(x=MntGoldProds)) +
         geom_density() + labs(x='MntGoldProds')
 s7 <- ggplot(data= subset, aes(x=Income)) +
         geom_density() + labs(x='Income')
-
 s8 <- ggplot(data= subset, aes(x=NumDealsPurchases)) +
         geom_density() + labs(x='NumDealsPurchases')
-
 s9 <- ggplot(data= subset, aes(x=NumWebPurchases)) +
         geom_density() + labs(x='NumWebPurchases')
-
 s10 <- ggplot(data= subset, aes(x=NumCatalogPurchases)) +
         geom_density() + labs(x='NumCatalogPurchases')
-
 s11 <- ggplot(data= subset, aes(x=NumStorePurchases)) +
         geom_density() + labs(x='NumStorePurchases')
-
 s12 <- ggplot(data= subset, aes(x=NumWebVisitsMonth)) +
         geom_density() + labs(x='NumWebVisitsMonth')
 
@@ -320,16 +320,16 @@ summary(as.factor(subset2$Marital_Status))
 
 # Normalizando variáveis numéricas com skew maior que 0.6 ou menor que -0.6 com log e pré-processamento.
 
-skewed <- as.data.frame(ifelse(skew(subset2[,numericVars]) > 0.4 | skew(subset2[,numericVars]) < -0.4, log(subset2[,numericVars]+1),subset2[,numericVars]))
+skewed <- as.data.frame(ifelse(skew(subset2[,numericVars]) > 0.8 | skew(subset2[,numericVars]) < -0.8, log(subset2[,numericVars]+1),subset2[,numericVars]))
 
 
 colnames(skewed) <- numericVars
 
 # Pré-procesando dataset
 
-preNumVars <- preProcess(skewed, method = c('center','scale'),na.remove = T)
-preNumVars
-trainClean_NumVars <- predict(preNumVars,skewed)
+# preNumVars <- preProcess(skewed, method = c('center','scale'),na.remove = T)
+# preNumVars
+# trainClean_NumVars <- predict(preNumVars,skewed)
 
 
 ```
@@ -348,7 +348,7 @@ dt_dummied <- data.frame(predict(dummy, newdata = subset2))
 
 # Ordinal encoding na variável Education
 
-trainClean_NumVars$Education.ord <- ifelse(subset2$Education == 'Basic', 1,
+skewed$Education.ord <- ifelse(subset2$Education == 'Basic', 1,
                                 ifelse(subset2$Education == '2n Cycle',2,
                                        ifelse(subset2$Education == 'Graduation', 3,
                                               ifelse(subset2$Education == 'Master', 4, 5))))
@@ -362,7 +362,7 @@ subset2$Dt_Customer <- NULL
 
 
 # Combinando o dataset final para fazermos nossa previsão.
-dataset4 <- cbind(dt_dummied, trainClean_NumVars, subset2[,18:24])
+dataset4 <- cbind(dt_dummied, skewed, subset2[,18:24])
 
 # Revertendo as colunas booleanas
 dataset4$AcceptedCmp1 <- as.numeric(dataset4$AcceptedCmp1)
@@ -377,12 +377,103 @@ dataset4$Complain <- as.numeric(dataset4$Complain)
 
 ```{r echo=FALSE}
 
+# Revertendo as colunas em fatores
+dataset4$Marital_StatusMarried <- as.factor(dataset4$Marital_StatusMarried)
+dataset4$Marital_StatusSingle <- as.factor(dataset4$Marital_StatusSingle)
+dataset4$Marital_StatusTogether <- as.factor(dataset4$Marital_StatusTogether)
+dataset4$Marital_StatusWidow <- as.factor(dataset4$Marital_StatusWidow)
+dataset4$AcceptedCmp1 <- as.factor(dataset4$AcceptedCmp1)
+dataset4$AcceptedCmp2 <- as.factor(dataset4$AcceptedCmp2)
+dataset4$AcceptedCmp3 <- as.factor(dataset4$AcceptedCmp3)
+dataset4$AcceptedCmp4 <- as.factor(dataset4$AcceptedCmp4)
+dataset4$AcceptedCmp5 <- as.factor(dataset4$AcceptedCmp5)
+dataset4$Response <- as.factor(dataset4$Response)
+dataset4$Complain <- as.factor(dataset4$Complain)
 
+
+# Amostra Houldout
+
+amostra = sample(2,dim(dataset4)[1], replace = T, prob = c(0.75,0.25))
+
+treino = dataset4[amostra==1,] 
+
+teste = dataset4[amostra==2,]
 
 ```
 
 ```{r echo=FALSE}
 
+# Depois de rodar vários modelos de todos os tipos, eu escolhi GLM com Stepwise AIC, pois ele teve a maior Sensibilidade, diante da análise da matriz de confusão. Isto é, o modelo conseguiu prever uma maior proporção de casos positivos comparado com os outros modelos que eu testei. Além de ter tido uma acurácia bem relevante também.
 
+# Neste caso, utilizei pré-processamento para centralizar e escalar a distribuição, mas neste modelo não obtive diferença se eu não tivesse utilizado, diferente dos outros modelos.
+
+# Utilizei cross-validation para que o modelo não causasse overfitting.
+
+# A variável complain foi inútil na maioria dos modelos treinados, porém como o Stepwise utiliza somente as melhores variáveis de acordo com o AIC, decidi mantê-lo no dataset.
+
+glm_model = train(Response ~ . , data = treino, method = 'glmStepAIC', trControl = trainControl(method = "cv", number = 20), verbose = F, preProcess = c('center', 'scale'))
+
+plot(varImp(glm_model))
+
+# Testando modelo
+resultado = predict(glm_model, newdata = teste[,1:26])
+
+# Matriz de Confusão
+confusionMatrix(data = resultado, reference = teste$Response, positive = "1")
+
+```
+
+```{r echo=FALSE}
+
+# Segmentation
+
+# Revertendo as colunas booleanas
+subset2$AcceptedCmp1 <- as.numeric(subset2$AcceptedCmp1)
+subset2$AcceptedCmp2 <- as.numeric(subset2$AcceptedCmp2)
+subset2$AcceptedCmp3 <- as.numeric(subset2$AcceptedCmp3)
+subset2$AcceptedCmp4 <- as.numeric(subset2$AcceptedCmp4)
+subset2$AcceptedCmp5 <- as.numeric(subset2$AcceptedCmp5)
+subset2$Response <- as.numeric(subset2$Response)
+subset2$Complain <- as.numeric(subset2$Complain)
+
+# Irei utilizar K-Means para analisar a segmentação de consumidores
+
+cluster = kmeans(subset2[,c(3,7:17)], center = 3)
+
+# Gráfico
+
+s1 <- plot(subset2[,7], subset2[,3], col=cluster$cluster, xlab = 'Gastos com vinhos nos últimos 2 anos', ylab = 'Renda anual familiar do consumidor')
+
+s2 <- plot(subset2[,8], subset2[,3], col=cluster$cluster, xlab = 'Gastos com frutas nos últimos 2 anos', ylab = 'Renda anual familiar do consumidor')
+
+s3 <- plot(subset2[,9], subset2[,3], col=cluster$cluster, xlab = 'Gastos com carne nos últimos 2 anos', ylab = 'Renda anual familiar do consumidor')
+
+s4 <- plot(subset2[,10], subset2[,3], col=cluster$cluster, xlab = 'Gastos com peixe nos últimos 2 anos', ylab = 'Renda anual familiar do consumidor')
+
+s5 <- plot(subset2[,11], subset2[,3], col=cluster$cluster, xlab = 'Gastos com doces nos últimos 2 anos', ylab = 'Renda anual familiar do consumidor')
+
+s6 <- plot(subset2[,12], subset2[,3], col=cluster$cluster, xlab = 'Gastos com produtos premium nos últimos 2 anos', ylab = 'Renda anual familiar do consumidor')
+
+# Achei um insight referente a segmentação dos consumidores.
+
+# - Os consumidores com as maiores renda anual familiar são os que mais gastaram com produtos nos últimos 2 anos conforme os gráficos.
+
+# Na verdade isto se aplica a qualquer montante gasto, seja vinho, carne, peixe, doce, pois a renda familiar do consumidor está diretamente proporcional ao poder de consumo destes bens.
+
+```
+
+```{r echo=FALSE}
+
+# Agora um fato interessante é que os consumidores com as menores rendas familiares são os que mais acessaram o site da empresa no último mês
+
+plot(subset2[,17], subset2[,3], col=cluster$cluster, xlab = 'Número de visitas ao site da empresa no último mês', ylab = 'Renda anual familiar do consumidor')
+
+```
+
+```{r echo=FALSE}
+
+# Gráfico abaixo demonstra bem a segmentação de consumidores, pois os consumidores que menos gastaram com carne nos últimos 2 anos, foram os mesmos que menos gastaram com vinho no mesmo período, mantendo a ordem da clusterização bem uniforme entre os 3 clusters.
+
+plot(subset2[,7], subset2[,9], col=cluster$cluster, xlab = 'Gastos com vinhos nos últimos 2 anos', ylab = 'Gastos com carne nos últimos 2 anos')
 
 ```
