@@ -76,6 +76,16 @@ dados$Complain <- as.logical(dados$Complain)
 
 ```{r echo=FALSE}
 
+# Verificando a variável dependente
+
+summary(as.factor(dados$Response))
+
+# Conforme resultado abaixo, podemos verificar que há poucos registros em que os clientes aceitaram a oferta na última campanha em comparação com aqueles que não aceitaram. Devemos treinar um modelo que consiga acertar o máximo possível destes casos positivos, uma vez que há uma proporção muito desigual e que o próprio algoritmo irá ter dificuldades para aprender de forma consistente por conta disso.
+
+```
+
+```{r echo=FALSE}
+
 # Correlação entre as variáveis numéricas
 
 numericVars <- which(sapply(dados, is.numeric))
