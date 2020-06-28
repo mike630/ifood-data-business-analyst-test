@@ -330,7 +330,7 @@ summary(as.factor(subset2$Marital_Status))
 
 # FEATURE ENGINEERING
 
-# Normalizando variáveis numéricas com skew maior que 0.6 ou menor que -0.6 com log e pré-processamento.
+# Normalizando variáveis numéricas com skew maior que 0.8 ou menor que -0.8 com log e pré-processamento.
 
 numericVars <- which(sapply(subset2, is.numeric))
 numericVars <- names(numericVars)
@@ -406,7 +406,7 @@ dataset4$Response <- as.factor(dataset4$Response)
 dataset4$Complain <- as.factor(dataset4$Complain)
 
 
-# Amostra Houldout
+# Amostra Holdout
 
 amostra = sample(2,dim(dataset4)[1], replace = T, prob = c(0.75,0.25))
 
