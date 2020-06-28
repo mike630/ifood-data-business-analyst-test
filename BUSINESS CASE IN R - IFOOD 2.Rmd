@@ -116,6 +116,12 @@ plot(NumCatalogPurchases~MntMeatProducts, data = dados, main = 'Plotagem das var
 abline(reg, col = 'red', lwd = 4)
 
 ```
+```{r echo=FALSE}
+
+# Sumário da regressão linear com os outliers
+summary(reg)
+
+```
 
 ```{r echo=FALSE}
 
@@ -151,7 +157,9 @@ best_cor[2]*100
 
 ```{r echo=FALSE}
 
-# Irei considerar estas duas variáveis, por enquanto, em nossa análise, pois ao retirar os outliers houve uma queda na correlação entre as variáveis e o R^2 da regressão linear ficou abaixo de 50%. Isto quer dizer que o cruzamento dos dados dessas duas variáveis estão dispersos diante da linha ajustada pelo modelo de regressão, tornando estas duas variáveis insignificantes comparando-as uma com a outra.   
+# Irei desconsiderar a variável MntMeatProducts por conta dela ter uma alta correlação com a variável NumCatalogPurchases. P-value do t-value do MntMeatProducts na regressão linear é <2e-16. Tendo alta correlação entre o intercepto do modelo e a variável independente.
+
+subset <- select(subset,-c('MntMeatProducts'))
 
 # Análise geral
 
@@ -167,8 +175,6 @@ s1 <- ggplot(data= subset, aes(x=MntWines)) +
         geom_density() + labs(x='MntWines')
 s2 <- ggplot(data=subset, aes(x=MntFruits)) +
         geom_density() + labs(x='MntFruits')
-s3 <- ggplot(data= subset, aes(x=MntMeatProducts)) +
-        geom_density() + labs(x='MntMeatProducts')
 s4 <- ggplot(data= subset, aes(x=MntFishProducts)) +
         geom_density() + labs(x='MntFishProducts')
 s5 <- ggplot(data= subset, aes(x=MntSweetProducts)) +
@@ -188,7 +194,7 @@ s11 <- ggplot(data= subset, aes(x=NumStorePurchases)) +
 s12 <- ggplot(data= subset, aes(x=NumWebVisitsMonth)) +
         geom_density() + labs(x='NumWebVisitsMonth')
 
-ggarrange(s1,s2,s3,s4,s5,s6, ncol = 3, nrow = 2)
+ggarrange(s1,s2,s4,s5,s6, ncol = 3, nrow = 2)
 
 ggarrange(s7,s8,s9,s10,s11,s12, ncol = 3, nrow = 2)
 
@@ -204,10 +210,6 @@ s1 <- ggplot(data= subset, aes(y=MntWines, x= Education)) +
 
 s2 <- ggplot(data=subset, aes(y=MntFruits, x= Education)) +
         geom_boxplot(aes(fill = Education)) + labs(y='MntFruits', x= 'Education') + 
-        scale_fill_brewer(palette = "Dark2")
-
-s3 <- ggplot(data= subset, aes(y=MntMeatProducts, x= Education)) +
-        geom_boxplot(aes(fill = Education)) + labs(y='MntMeatProducts', x= 'Education') + 
         scale_fill_brewer(palette = "Dark2")
 
 s4 <- ggplot(data= subset, aes(y=MntFishProducts, x= Education)) +
@@ -247,7 +249,7 @@ s12 <- ggplot(data= subset, aes(y=NumWebVisitsMonth, x= Education)) +
         scale_fill_brewer(palette = "Dark2")
 
 ggarrange(s1,s2, ncol = 1, nrow = 2)
-ggarrange(s3,s4, ncol = 1, nrow = 2)
+ggarrange(s4, ncol = 1, nrow = 1)
 ggarrange(s5,s6, ncol = 1, nrow = 2)
 ggarrange(s7,s8, ncol = 1, nrow = 2)
 ggarrange(s9,s10, ncol = 1, nrow = 2)
@@ -330,6 +332,9 @@ summary(as.factor(subset2$Marital_Status))
 
 # Normalizando variáveis numéricas com skew maior que 0.6 ou menor que -0.6 com log e pré-processamento.
 
+numericVars <- which(sapply(subset2, is.numeric))
+numericVars <- names(numericVars)
+
 skewed <- as.data.frame(ifelse(skew(subset2[,numericVars]) > 0.8 | skew(subset2[,numericVars]) < -0.8, log(subset2[,numericVars]+1),subset2[,numericVars]))
 
 
@@ -372,7 +377,7 @@ subset2$Dt_Customer <- NULL
 
 
 # Combinando o dataset final para fazermos nossa previsão.
-dataset4 <- cbind(dt_dummied, skewed, subset2[,18:24])
+dataset4 <- cbind(dt_dummied, skewed, subset2[,17:23])
 
 # Revertendo as colunas booleanas
 dataset4$AcceptedCmp1 <- as.numeric(dataset4$AcceptedCmp1)
@@ -456,19 +461,17 @@ s1 <- plot(subset2[,7], subset2[,3], col=cluster$cluster, xlab = 'Gastos com vin
 
 s2 <- plot(subset2[,8], subset2[,3], col=cluster$cluster, xlab = 'Gastos com frutas nos últimos 2 anos', ylab = 'Renda anual familiar do consumidor')
 
-s3 <- plot(subset2[,9], subset2[,3], col=cluster$cluster, xlab = 'Gastos com carne nos últimos 2 anos', ylab = 'Renda anual familiar do consumidor')
+s4 <- plot(subset2[,9], subset2[,3], col=cluster$cluster, xlab = 'Gastos com peixe nos últimos 2 anos', ylab = 'Renda anual familiar do consumidor')
 
-s4 <- plot(subset2[,10], subset2[,3], col=cluster$cluster, xlab = 'Gastos com peixe nos últimos 2 anos', ylab = 'Renda anual familiar do consumidor')
+s5 <- plot(subset2[,10], subset2[,3], col=cluster$cluster, xlab = 'Gastos com doces nos últimos 2 anos', ylab = 'Renda anual familiar do consumidor')
 
-s5 <- plot(subset2[,11], subset2[,3], col=cluster$cluster, xlab = 'Gastos com doces nos últimos 2 anos', ylab = 'Renda anual familiar do consumidor')
-
-s6 <- plot(subset2[,12], subset2[,3], col=cluster$cluster, xlab = 'Gastos com produtos premium nos últimos 2 anos', ylab = 'Renda anual familiar do consumidor')
+s6 <- plot(subset2[,11], subset2[,3], col=cluster$cluster, xlab = 'Gastos com produtos premium nos últimos 2 anos', ylab = 'Renda anual familiar do consumidor')
 
 # Achei um insight referente a segmentação dos consumidores.
 
 # - Os consumidores com as maiores renda anual familiar são os que mais gastaram com produtos nos últimos 2 anos conforme os gráficos.
 
-# Na verdade isto se aplica a qualquer montante gasto, seja vinho, carne, peixe, doce, pois a renda familiar do consumidor está diretamente proporcional ao poder de consumo destes bens.
+# Na verdade isto se aplica a qualquer montante gasto, seja vinho, peixe, doce, pois a renda familiar do consumidor está diretamente proporcional ao poder de consumo destes bens.
 
 ```
 
@@ -476,14 +479,6 @@ s6 <- plot(subset2[,12], subset2[,3], col=cluster$cluster, xlab = 'Gastos com pr
 
 # Agora um fato interessante é que os consumidores com as menores rendas familiares são os que mais acessaram o site da empresa no último mês
 
-plot(subset2[,17], subset2[,3], col=cluster$cluster, xlab = 'Número de visitas ao site da empresa no último mês', ylab = 'Renda anual familiar do consumidor')
-
-```
-
-```{r echo=FALSE}
-
-# Gráfico abaixo demonstra bem a segmentação de consumidores, pois os consumidores que menos gastaram com carne nos últimos 2 anos, foram os mesmos que menos gastaram com vinho no mesmo período, mantendo a ordem da clusterização bem uniforme entre os 3 clusters.
-
-plot(subset2[,7], subset2[,9], col=cluster$cluster, xlab = 'Gastos com vinhos nos últimos 2 anos', ylab = 'Gastos com carne nos últimos 2 anos')
+plot(subset2[,16], subset2[,3], col=cluster$cluster, xlab = 'Número de visitas ao site da empresa no último mês', ylab = 'Renda anual familiar do consumidor')
 
 ```
